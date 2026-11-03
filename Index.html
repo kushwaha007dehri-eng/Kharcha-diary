@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>निजी खर्च डायरी</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #38bdf8;
+      --success: #10b981;
+      --danger: #f43f5e;
+      --warning: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background-color: var(--bg); color: var(--text); padding: 16px; padding-bottom: 90px; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    h1 { font-size: 1.25rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
+    .badge { font-size: 0.7rem; background: #064e3b; color: #34d399; padding: 2px 8px; border-radius: 12px; border: 1px solid #059669; }
+    
+    .grid-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 12px; }
+    .card.full { grid-column: span 2; }
+    .card-title { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .card-value { font-size: 1.25rem; font-weight: 700; }
+    .val-balance { color: var(--primary); }
+    .val-income { color: var(--success); }
+    .val-expense { color: var(--danger); }
+    
+    .budget-bar-bg { height: 6px; background: #334155; border-radius: 3px; overflow: hidden; margin-top: 8px; }
+    .budget-bar-fill { height: 100%; width: 0%; background: var(--success); transition: width 0.3s; }
+
+    .btn { background: var(--card-bg); border: 1px solid var(--card-border); color: var(--text); padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+    .btn-primary { background: #0284c7; border: none; color: #fff; width: 100%; padding: 12px; font-size: 0.95rem; border-radius: 10px; }
+    .btn-danger { background: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244, 63, 94, 0.4); color: #fda4af; padding: 4px 8px; font-size: 0.75rem; border-radius: 6px; }
+
+    .actions-row { display: flex; gap: 8px; margin-bottom: 16px; }
+    .actions-row .btn { flex: 1; }
+
+    .form-group { margin-bottom: 12px; }
+    label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
+    input, select { width: 100%; background: #0f172a; border: 1px solid var(--card-border); color: var(--text); padding: 10px; border-radius: 8px; font-size: 0.9rem; outline: none; }
+    input:focus, select:focus { border-color: var(--primary); }
+    .type-selector { display: flex; gap: 8px; margin-bottom: 12px; }
+    .type-btn { flex: 1; padding: 10px; text-align: center; border-radius: 8px; border: 1px solid var(--card-border); background: #0f172a; color: var(--text-muted); font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+    .type-btn.active.expense { background: rgba(244, 63, 94, 0.2); border-color: var(--danger); color: var(--danger); }
+    .type-btn.active.income { background: rgba(16, 185, 129, 0.2); border-color: var(--success); color: var(--success); }
+
+    .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .list-header h2 { font-size: 1rem; color: var(--text); }
+    .filter-input { width: 45%; padding: 6px 10px; font-size: 0.8rem; }
+
+    .tx-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; margin-bottom: 8px; }
+    .tx-left { display: flex; flex-direction: column; gap: 2px; }
+    .tx-title { font-size: 0.9rem; font-weight: 600; }
+    .tx-meta { font-size: 0.75rem; color: var(--text-muted); }
+    .tx-right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+    .tx-amount { font-size: 1rem; font-weight: 700; }
+    .tx-amount.expense { color: var(--danger); }
+    .tx-amount.income { color: var(--success); }
+
+    .empty-state { text-align: center; color: var(--text-muted); padding: 30px; font-size: 0.85rem; }
+
+    /* Modal */
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 100; justify-content: center; align-items: flex-end; }
+    .modal.active { display: flex; }
+    .modal-content { background: var(--card-bg); border-top: 1px solid var(--card-border); width: 100%; max-width: 500px; border-radius: 20px 20px 0 0; padding: 20px; max-height: 90vh; overflow-y: auto; }
+    .modal-title { font-size: 1.1rem; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+    .close-btn { background: none; border: none; color: var(--text-muted); font-size: 1.4rem; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>₹ खर्च डायरी</h1>
+    <span class="badge">🔒 100% लोकल (ऑफ़लाइन)</span>
+  </header>
+
+  <div class="grid-cards">
+    <div class="card full">
+      <div class="card-title">कुल शेष राशि (Net Savings)</div>
+      <div class="card-value val-balance" id="netBalance">₹0</div>
+      <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-top:10px;">
+        <span>मासिक बजट: ₹<span id="budgetDisplay">25,000</span></span>
+        <span id="budgetPercent">0%</span>
+      </div>
+      <div class="budget-bar-bg">
+        <div class="budget-bar-fill" id="budgetBar"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">इस माह आय</div>
+      <div class="card-value val-income" id="monthIncome">+₹0</div>
+    </div>
+    <div class="card">
+      <div class="card-title">इस माह खर्च</div>
+      <div class="card-value val-expense" id="monthExpense">-₹0</div>
+    </div>
+  </div>
+
+  <div class="actions-row">
+    <button class="btn" onclick="openTxModal()">➕ नया लेन-देन</button>
+    <button class="btn" onclick="openBudgetModal()">🎯 बजट सेट करें</button>
+    <button class="btn" onclick="exportBackup()">💾 बैकअप लें</button>
+    <label class="btn" style="cursor:pointer; margin-bottom:0;">
+      📂 रिस्टोर <input type="file" id="importFileInput" accept=".json" style="display:none;" onchange="importBackup(event)">
+    </label>
+  </div>
+
+  <div class="list-header">
+    <h2>हालिया लेन-देन</h2>
+    <input type="text" id="searchInput" class="filter-input" placeholder="खोजें (किराना, बिल...)" oninput="filterTransactions()">
+  </div>
+
+  <div id="txList"></div>
+
+  <!-- Modal: Add Transaction -->
+  <div class="modal" id="txModal">
+    <div class="modal-content">
+      <div class="modal-title">
+        <span>नया लेन-देन दर्ज करें</span>
+        <button class="close-btn" onclick="closeTxModal()">×</button>
+      </div>
+      <div class="type-selector">
+        <div class="type-btn active expense" id="btnTypeExpense" onclick="setType('expense')">खर्च (Expense)</div>
+        <div class="type-btn" id="btnTypeIncome" onclick="setType('income')">आय (Income)</div>
+      </div>
+      <div class="form-group">
+        <label>रुपये (Amount)</label>
+        <input type="number" id="txAmount" placeholder="0" inputmode="decimal" required>
+      </div>
+      <div class="form-group">
+        <label>श्रेणी (Category)</label>
+        <select id="txCategory">
+          <option value="राशन/किराना">राशन / किराना</option>
+          <option value="बिजली/पानी बिल">बिजली / गैस / बिल</option>
+          <option value="पेट्रोल/सफर">पेट्रोल / यात्रा</option>
+          <option value="सैलरी/कमाई">सैलरी / मुख्य आय</option>
+          <option value="ट्रेडिंग/निवेश">ट्रेडिंग / म्यूचुअल फंड / निवेश</option>
+          <option value="दवा/मेडिकल">दवा / स्वास्थ्य</option>
+          <option value="घर/मरम्मत">घर का सामान / हार्डवेयर</option>
+          <option value="अन्य">अन्य खर्च</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>भुगतान माध्यम</label>
+        <select id="txMode">
+          <option value="UPI">UPI / GPay / PhonePe</option>
+          <option value="नकद">नकद (Cash)</option>
+          <option value="बैंक ट्रांसफर">बैंक ट्रांसफर / नेट बैंकिंग</option>
+          <option value="कार्ड">क्रेडिट / डेबिट कार्ड</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>विवरण (Note / Tags)</label>
+        <input type="text" id="txNote" placeholder="जैसे: सब्जी मंडी, पेट्रोल पंप...">
+      </div>
+      <div class="form-group">
+        <label>तारीख</label>
+        <input type="date" id="txDate">
+      </div>
+      <button class="btn btn-primary" onclick="saveTransaction()">सुरक्षित सहेजें</button>
+    </div>
+  </div>
+
+  <!-- Modal: Set Budget -->
+  <div class="modal" id="budgetModal">
+    <div class="modal-content">
+      <div class="modal-title">
+        <span>मासिक बजट लक्ष्य</span>
+        <button class="close-btn" onclick="closeBudgetModal()">×</button>
+      </div>
+      <div class="form-group">
+        <label>इस महीने का बजट सीमा (₹)</label>
+        <input type="number" id="budgetInput" placeholder="25000">
+      </div>
+      <button class="btn btn-primary" onclick="saveBudget()">अपडेट करें</button>
+    </div>
+  </div>
+
+  <script>
+    // 1. PWA Service Worker Registration
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW error:', err));
+      });
+    }
+
+    // 2. IndexedDB Setup (Structured Local Database)
+    let db;
+    let currentType = 'expense';
+    let allTransactions = [];
+    let monthlyBudget = parseFloat(localStorage.getItem('user_budget') || '25000');
+
+    const request = indexedDB.open('KharchDiaryDB', 1);
+    request.onupgradeneeded = (e) => {
+      db = e.target.result;
+      if (!db.objectStoreNames.contains('transactions')) {
+        const store = db.createObjectStore('transactions', { keyPath: 'id', autoIncrement: true });
+        store.createIndex('date', 'date', { unique: false });
+      }
+    };
+    request.onsuccess = (e) => {
+      db = e.target.result;
+      document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
+      loadTransactions();
+    };
+
+    function setType(type) {
+      currentType = type;
+      document.getElementById('btnTypeExpense').className = 'type-btn ' + (type === 'expense' ? 'active expense' : '');
+      document.getElementById('btnTypeIncome').className = 'type-btn ' + (type === 'income' ? 'active income' : '');
+    }
+
+    function openTxModal() { document.getElementById('txModal').classList.add('active'); }
+    function closeTxModal() { document.getElementById('txModal').classList.remove('active'); }
+    function openBudgetModal() { 
+      document.getElementById('budgetInput').value = monthlyBudget;
+      document.getElementById('budgetModal').classList.add('active'); 
+    }
+    function closeBudgetModal() { document.getElementById('budgetModal').classList.remove('active'); }
+
+    function saveBudget() {
+      const val = parseFloat(document.getElementById('budgetInput').value);
+      if (val > 0) {
+        monthlyBudget = val;
+        localStorage.setItem('user_budget', val.toString());
+        updateDashboard();
+        closeBudgetModal();
+      }
+    }
+
+    function saveTransaction() {
+      const amount = parseFloat(document.getElementById('txAmount').value);
+      if (!amount || amount <= 0) return alert('कृपया सही राशि दर्ज करें');
+      
+      const tx = {
+        type: currentType,
+        amount: amount,
+        category: document.getElementById('txCategory').value,
+        mode: document.getElementById('txMode').value,
+        note: document.getElementById('txNote').value.trim() || document.getElementById('txCategory').value,
+        date: document.getElementById('txDate').value || new Date().toISOString().split('T')[0],
+        timestamp: Date.now()
+      };
+
+      const transaction = db.transaction(['transactions'], 'readwrite');
+      transaction.objectStore('transactions').add(tx);
+      transaction.oncomplete = () => {
+        document.getElementById('txAmount').value = '';
+        document.getElementById('txNote').value = '';
+        closeTxModal();
+        loadTransactions();
+      };
+    }
+
+    function deleteTx(id) {
+      if (confirm('क्या आप इस एंट्री को हटाना चाहते हैं?')) {
+        const transaction = db.transaction(['transactions'], 'readwrite');
+        transaction.objectStore('transactions').delete(id);
+        transaction.oncomplete = () => loadTransactions();
+      }
+    }
+
+    function loadTransactions() {
+      const transaction = db.transaction(['transactions'], 'readonly');
+      const store = transaction.objectStore('transactions');
+      const req = store.getAll();
+      req.onsuccess = () => {
+        allTransactions = req.result.sort((a, b) => new Date(b.date) - new Date(a.date) || b.timestamp - a.timestamp);
+        renderList(allTransactions);
+        updateDashboard();
+      };
+    }
+
+    function updateDashboard() {
+      const now = new Date();
+      const currentMonth = now.toISOString().slice(0, 7); // 'YYYY-MM'
+
+      let totalIncome = 0;
+      let totalExpense = 0;
+      let monthExp = 0;
+      let monthInc = 0;
+
+      allTransactions.forEach(t => {
+        if (t.type === 'income') {
+          totalIncome += t.amount;
+          if (t.date.startsWith(currentMonth)) monthInc += t.amount;
+        } else {
+          totalExpense += t.amount;
+          if (t.date.startsWith(currentMonth)) monthExp += t.amount;
+        }
+      });
+
+      const netBalance = totalIncome - totalExpense;
+      document.getElementById('netBalance').innerText = '₹' + netBalance.toLocaleString('en-IN');
+      document.getElementById('monthIncome').innerText = '+₹' + monthInc.toLocaleString('en-IN');
+      document.getElementById('monthExpense').innerText = '-₹' + monthExp.toLocaleString('en-IN');
+      document.getElementById('budgetDisplay').innerText = monthlyBudget.toLocaleString('en-IN');
+
+      const pct = Math.min(100, Math.round((monthExp / monthlyBudget) * 100));
+      document.getElementById('budgetPercent').innerText = pct + '%';
+      const bar = document.getElementById('budgetBar');
+      bar.style.width = pct + '%';
+      bar.style.background = pct >= 90 ? 'var(--danger)' : (pct >= 70 ? 'var(--warning)' : 'var(--success)');
+    }
+
+    function renderList(list) {
+      const container = document.getElementById('txList');
+      if (list.length === 0) {
+        container.innerHTML = '<div class="empty-state">कोई एंट्री नहीं मिली। नया खर्च दर्ज करने के लिए ➕ बटन दबाएं।</div>';
+        return;
+      }
+      container.innerHTML = list.map(t => `
+        <div class="tx-item">
+          <div class="tx-left">
+            <div class="tx-title">${t.note}</div>
+            <div class="tx-meta">${t.category} • ${t.mode} • ${t.date}</div>
+          </div>
+          <div class="tx-right">
+            <div class="tx-amount ${t.type}">${t.type === 'income' ? '+' : '-'}₹${t.amount.toLocaleString('en-IN')}</div>
+            <button class="btn-danger" onclick="deleteTx(${t.id})">हटाएं</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function filterTransactions() {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      const filtered = allTransactions.filter(t => 
+        t.note.toLowerCase().includes(query) || 
+        t.category.toLowerCase().includes(query) ||
+        t.mode.toLowerCase().includes(query)
+      );
+      renderList(filtered);
+    }
+
+    // Backup & Restore
+    function exportBackup() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(allTransactions, null, 2));
+      const dlAnchor = document.createElement('a');
+      dlAnchor.setAttribute("href", dataStr);
+      dlAnchor.setAttribute("download", `kharch_diary_backup_${new Date().toISOString().slice(0,10)}.json`);
+      dlAnchor.click();
+    }
+
+    function importBackup(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const items = JSON.parse(e.target.result);
+          if (!Array.isArray(items)) throw new Error('अमान्य फाइल');
+          const tx = db.transaction(['transactions'], 'readwrite');
+          const store = tx.objectStore('transactions');
+          items.forEach(item => {
+            delete item.id; // Generate fresh IDs
+            store.add(item);
+          });
+          tx.oncomplete = () => {
+            alert('डेटा सफलतापूर्वक रिस्टोर हो गया!');
+            loadTransactions();
+          };
+        } catch (err) {
+          alert('फाइल पढ़ने में समस्या आई। सुनिश्चित करें कि यह सही बैकअप फाइल है।');
+        }
+      };
+      reader.readAsText(file);
+    }
+  </script>
+</body>
+</html>
